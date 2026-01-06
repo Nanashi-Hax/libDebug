@@ -35,6 +35,7 @@ Target := libException
 
 SourceDir := $(TopDir)/Source
 IncludeDir := $(TopDir)/Include
+APIDir := $(TopDir)/API
 BuildDir := $(TopDir)/Build
 DistDir := $(TopDir)/Dist
 
@@ -108,4 +109,4 @@ install: $(DistLibraryFile)
 	@mkdir -p $(InstallLibDir)
 	@mkdir -p $(InstallIncDir)
 	@cp $< $(InstallLibDir)/
-	@cp -r $(IncludeDir)/* $(InstallIncDir)/
+	@cp -r $(APIDir)/* $(InstallIncDir)/

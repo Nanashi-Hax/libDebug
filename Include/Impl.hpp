@@ -5,7 +5,7 @@
 #include <coreinit/context.h>
 #include <coreinit/exception.h>
 
-#include "Exception/Base.hpp"
+#include "Base.hpp"
 
 namespace Exception
 {

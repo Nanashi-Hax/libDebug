@@ -1,6 +1,6 @@
 #include <format>
 
-#include "Exception/Impl.hpp"
+#include "Impl.hpp"
 
 namespace Exception
 {

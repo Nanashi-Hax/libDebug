@@ -1,6 +1,6 @@
-#include "Exception/Patch.hpp"
-#include "Exception/Callback.hpp"
-#include "Exception/Impl.hpp"
+#include "Patch.hpp"
+#include "Callback.hpp"
+#include "Impl.hpp"
 
 namespace Exception
 {
