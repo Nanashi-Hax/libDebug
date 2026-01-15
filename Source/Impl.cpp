@@ -50,6 +50,17 @@ namespace Exception
     std::string ISI::name() { return "ISI"; }
     OSExceptionType ISI::type() { return OSExceptionType::OS_EXCEPTION_TYPE_ISI; }
 
+    void ISI::panic(std::string name, OSContext* context)
+    {
+        uint32_t codeAddress = context->srr0;
+
+        char symbol[1024];
+        OSGetSymbolName(codeAddress, symbol, sizeof(symbol));
+        std::string message = std::format("{0} Exception occurred from 0x{1:08X}\nSymbol: {2}", name, codeAddress, symbol);
+        WHBLogPrintf("%s", message.c_str());
+        OSFatal(message.c_str());
+    }
+
     std::string ExternalInterrupt::name() { return "ExternalInterrupt"; }
     OSExceptionType ExternalInterrupt::type() { return OSExceptionType::OS_EXCEPTION_TYPE_EXTERNAL_INTERRUPT; }
 
