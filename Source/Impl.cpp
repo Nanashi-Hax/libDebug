@@ -17,14 +17,21 @@ namespace Exception
 
     void DSI::panic(std::string name, OSContext* context)
     {
-        uint32_t codeAddress = context->srr0;
-        uint32_t dataAddress = context->dar;
+        if(context)
+        {
+            uint32_t codeAddress = context->srr0;
+            uint32_t dataAddress = context->dar;
 
-        char symbol[1024];
-        OSGetSymbolName(codeAddress, symbol, sizeof(symbol));
-        std::string message = std::format("{0} Exception occurred from 0x{1:08X} in 0x{2:08X}\nSymbol: {3}", name, codeAddress, dataAddress, symbol);
-        WHBLogPrintf("%s", message.c_str());
-        OSFatal(message.c_str());
+            char symbol[1024];
+            OSGetSymbolName(codeAddress, symbol, sizeof(symbol));
+            std::string message = std::format("{0} Exception occurred from 0x{1:08X} in 0x{2:08X}\nSymbol: {3}", name, codeAddress, dataAddress, symbol);
+            WHBLogPrintf("%s", message.c_str());
+            OSFatal(message.c_str());
+        }
+        else
+        {
+            std::string message = std::format("{0} Exception occurred", name);
+        }
     }
     
     bool DSI::handle(OSContext* context)
@@ -52,13 +59,20 @@ namespace Exception
 
     void ISI::panic(std::string name, OSContext* context)
     {
-        uint32_t codeAddress = context->srr0;
-
-        char symbol[1024];
-        OSGetSymbolName(codeAddress, symbol, sizeof(symbol));
-        std::string message = std::format("{0} Exception occurred from 0x{1:08X}\nSymbol: {2}", name, codeAddress, symbol);
-        WHBLogPrintf("%s", message.c_str());
-        OSFatal(message.c_str());
+        if(context)
+        {
+            uint32_t codeAddress = context->srr0;
+            
+            char symbol[1024];
+            OSGetSymbolName(codeAddress, symbol, sizeof(symbol));
+            std::string message = std::format("{0} Exception occurred from 0x{1:08X}\nSymbol: {2}", name, codeAddress, symbol);
+            WHBLogPrintf("%s", message.c_str());
+            OSFatal(message.c_str());
+        }
+        else
+        {
+            std::string message = std::format("{0} Exception occurred", name);
+        }
     }
 
     std::string ExternalInterrupt::name() { return "ExternalInterrupt"; }
@@ -66,6 +80,24 @@ namespace Exception
 
     std::string Alignment::name() { return "Alignment"; }
     OSExceptionType Alignment::type() { return OSExceptionType::OS_EXCEPTION_TYPE_ALIGNMENT; }
+
+    void Alignment::panic(std::string name, OSContext* context)
+    {
+        if(context)
+        {
+            uint32_t codeAddress = context->srr0;
+            
+            char symbol[1024];
+            OSGetSymbolName(codeAddress, symbol, sizeof(symbol));
+            std::string message = std::format("{0} Exception occurred from 0x{1:08X}\nSymbol: {2}", name, codeAddress, symbol);
+            WHBLogPrintf("%s", message.c_str());
+            OSFatal(message.c_str());
+        }
+        else
+        {
+            std::string message = std::format("{0} Exception occurred", name);
+        }
+    }
 
     std::string Program::name() { return "Program"; }
     OSExceptionType Program::type() { return OS_EXCEPTION_TYPE_PROGRAM; }

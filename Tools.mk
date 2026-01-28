@@ -79,3 +79,10 @@ define o2a
     @mkdir -p $(dir $2)
 	@$(Archive) -rcs $2 $1
 endef
+
+# abs2rel
+# $1: input absolute pathes
+# $2: base directory
+define abs2rel
+    $(if $(strip $1),$(shell realpath --relative-to=$2 $1))
+endef

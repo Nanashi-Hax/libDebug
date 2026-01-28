@@ -57,6 +57,8 @@ namespace Exception
     public:
         std::string name() override;
         static OSExceptionType type();
+
+        void panic(std::string name, OSContext* context) override;
     };
 
     class Program : public Base
