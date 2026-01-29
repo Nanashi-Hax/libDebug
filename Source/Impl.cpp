@@ -108,10 +108,29 @@ namespace Exception
         if(context)
         {
             uint32_t codeAddress = context->srr0;
-            
-            char symbol[1024];
-            OSGetSymbolName(codeAddress, symbol, sizeof(symbol));
-            std::string message = std::format("{0} Exception occurred from 0x{1:08X}\nSymbol: {2}", name, codeAddress, symbol);
+            uint32_t dataAddress = context->dar;
+            std::string message = std::format("{0} Exception occurred\n", name);
+            if(OSIsAddressValid(codeAddress))
+            {
+                char symbol[1024];
+                OSGetSymbolName(codeAddress, symbol, sizeof(symbol));
+                message += std::format("Code: {0} Symbol: {1}\n", codeAddress, symbol);
+            }
+            else
+            {
+                message += std::format("Code: {0}\n", codeAddress);
+            }
+
+            if(OSIsAddressValid(dataAddress))
+            {
+                char symbol[1024];
+                OSGetSymbolName(dataAddress, symbol, sizeof(symbol));
+                message += std::format("Code: {0} Symbol: {1}\n", dataAddress, symbol);
+            }
+            else
+            {
+                message += std::format("Code: {0}\n", dataAddress);
+            }
             WHBLogPrintf("%s", message.c_str());
             OSFatal(message.c_str());
         }
