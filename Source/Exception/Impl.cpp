@@ -89,11 +89,11 @@ namespace Library::Debug
             {
                 char symbol[1024];
                 OSGetSymbolName(codeAddress, symbol, sizeof(symbol));
-                message += std::format("Code: {0} Symbol: {1}\n", codeAddress, symbol);
+                message += std::format("Code: {0:08X} Symbol: {1}\n", codeAddress, symbol);
             }
             else
             {
-                message += std::format("Code: {0}\n", codeAddress);
+                message += std::format("Code: {0:08X}\n", codeAddress);
             }
             WHBLogPrintf("%s", message.c_str());
             OSFatal(message.c_str());

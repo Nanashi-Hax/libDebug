@@ -9,38 +9,28 @@ namespace Library::Debug
         return _raw;
     }
 
-    std::vector<Thread> Thread::all()
+std::vector<Thread> Thread::all()
+{
+    OSThread* it = OSGetCurrentThread();
+    if (!it) return {};
+
+    // 先頭まで戻る
+    while (it->link.prev)
     {
-        OSThread* osIt = OSGetCurrentThread();
-        if(!osIt) return {};
-
-        // Advance iterator to begin
-        while(true)
-        {
-            OSThread* previous = osIt->link.prev;
-            if(!previous) break;
-            osIt = previous;
-        }
-
-        // Stack OSThread
-        std::vector<OSThread*> osThreads;
-        while(true)
-        {
-            OSThread* next = osIt->link.next;
-            if(!next) break;
-            osThreads.push_back(osIt);
-            osIt = next;
-        }
-        
-        // Stack Thread
-        std::vector<Thread> threads;
-        for(auto it : osThreads)
-        {
-            Thread t(it);
-        }
-
-        return threads;
+        it = it->link.prev;
     }
+
+    std::vector<Thread> threads;
+
+    // 最後まで走査
+    for (OSThread* cur = it; cur; cur = cur->link.next)
+    {
+        Thread t(cur);
+        threads.emplace_back(t);
+    }
+
+    return threads;
+}
 
     Thread::Thread(OSThread* raw) : _raw(raw) {}
 }
