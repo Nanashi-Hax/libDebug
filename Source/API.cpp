@@ -1,6 +1,6 @@
+#include "Breakpoint.hpp"
 #include "Exception/Patch.hpp"
 #include "Debug.hpp"
-#include "Debug/Assembly.hpp"
 #include "Syscall.hpp"
 
 #include <cstdint>
@@ -11,35 +11,27 @@ namespace Library::Debug
     void Initialize()
     {
         Patch::apply();
+        
+        BreakpointManager::Initialize();
 
         //KernelPatchSyscall(0x6D, reinterpret_cast<uint32_t>(&SC_SetIABR));
         KernelPatchSyscall(0x6D, reinterpret_cast<uint32_t>(&SC_SetDABR));
     }
 
-    void SetIABR(uint32_t value)
+    void Shutdown()
     {
-        ::SetIABR(value);
+        BreakpointManager::Shutdown();
     }
 
-    void SetDABR(uint32_t value)
+    void SetDataBreakpoint(uint32_t address, bool read, bool write)
     {
-        ::SetDABR(value);
+        if(!BreakpointManager::IsInitialized()) return;
+        BreakpointManager::SetDataBreakpoint(address, read, write);
     }
 
-    void SetSwitchThreadCallback(OSSwitchThreadCallbackFn function)
+    void UnsetDataBreakpoint()
     {
-        OSSetSwitchThreadCallback(function);
-    }
-
-    void SetDSICallback(OSExceptionCallbackFn callback)
-    {
-        OSSetExceptionCallbackEx(OSExceptionMode::OS_EXCEPTION_MODE_THREAD_ALL_CORES, OSExceptionType::OS_EXCEPTION_TYPE_DSI, callback);
-    }
-
-    OSSwitchThreadCallbackFn OSSwitchThreadCallbackDefault = reinterpret_cast<OSSwitchThreadCallbackFn>(0x0103C4B4);
-
-    void ExcecuteInstruction(OSContext* context, uint32_t instruction)
-    {
-        ExcecuteInstructionImpl(context, instruction);
+        if(!BreakpointManager::IsInitialized()) return;
+        BreakpointManager::UnsetDataBreakpoint();
     }
 }
