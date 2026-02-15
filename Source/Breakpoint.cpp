@@ -55,22 +55,30 @@ namespace Library::Debug
         return vector;
     }
 
-    constexpr inline uint32_t OP_LWZ  = 32;
-    constexpr inline uint32_t OP_LWZU = 33;
-    constexpr inline uint32_t OP_LBZ  = 34;
-    constexpr inline uint32_t OP_LBZU = 35;
-    constexpr inline uint32_t OP_STW  = 36;
-    constexpr inline uint32_t OP_STWU = 37;
-    constexpr inline uint32_t OP_STB  = 38;
-    constexpr inline uint32_t OP_STBU = 39;
-    constexpr inline uint32_t OP_LHZ  = 40;
-    constexpr inline uint32_t OP_LHZU = 41;
-    constexpr inline uint32_t OP_LHA  = 42;
-    constexpr inline uint32_t OP_LHAU = 43;
-    constexpr inline uint32_t OP_STH  = 44;
-    constexpr inline uint32_t OP_STHU = 45;
-    constexpr inline uint32_t OP_LMW  = 46;
-    constexpr inline uint32_t OP_STMW = 47;
+    constexpr inline uint32_t OP_LWZ   = 32;
+    constexpr inline uint32_t OP_LWZU  = 33;
+    constexpr inline uint32_t OP_LBZ   = 34;
+    constexpr inline uint32_t OP_LBZU  = 35;
+    constexpr inline uint32_t OP_STW   = 36;
+    constexpr inline uint32_t OP_STWU  = 37;
+    constexpr inline uint32_t OP_STB   = 38;
+    constexpr inline uint32_t OP_STBU  = 39;
+    constexpr inline uint32_t OP_LHZ   = 40;
+    constexpr inline uint32_t OP_LHZU  = 41;
+    constexpr inline uint32_t OP_LHA   = 42;
+    constexpr inline uint32_t OP_LHAU  = 43;
+    constexpr inline uint32_t OP_STH   = 44;
+    constexpr inline uint32_t OP_STHU  = 45;
+    constexpr inline uint32_t OP_LMW   = 46;
+    constexpr inline uint32_t OP_STMW  = 47;
+    constexpr inline uint32_t OP_LFS   = 48;
+    constexpr inline uint32_t OP_LFSU  = 49;
+    constexpr inline uint32_t OP_LFD   = 50;
+    constexpr inline uint32_t OP_LFDU  = 51;
+    constexpr inline uint32_t OP_STFS  = 52;
+    constexpr inline uint32_t OP_STFSU = 53;
+    constexpr inline uint32_t OP_STFD  = 54;
+    constexpr inline uint32_t OP_STFDU = 55;
 
     OSSwitchThreadCallbackFn OSSwitchThreadCallbackDefault = reinterpret_cast<OSSwitchThreadCallbackFn>(0x0103C4B4);
 
@@ -184,6 +192,84 @@ namespace Library::Debug
                 return;
             }
 
+            case OP_LMW:
+            {
+                uint32_t addr = ea;
+            
+                for (uint32_t reg = rD; reg < 32; ++reg)
+                {
+                    if (!OSIsAddressValid(addr)) break;
+                
+                    context->gpr[reg] = *(uint32_t*)addr;
+                    addr += 4;
+                }
+            
+                return;
+            }
+
+            case OP_STMW:
+            {
+                uint32_t addr = ea;
+            
+                for (uint32_t reg = rD; reg < 32; ++reg)
+                {
+                    if (!OSIsAddressValid(addr)) break;
+                
+                    *(uint32_t*)addr = context->gpr[reg];
+                    addr += 4;
+                }
+            
+                return;
+            }
+
+            case OP_LFS:
+            case OP_LFSU:
+            {
+                float value = *(float*)ea;
+                context->fpr[rD] = static_cast<double>(value);
+            
+                if (op == OP_LFSU)
+                    context->gpr[rA] = ea;
+            
+                return;
+            }
+            
+            case OP_LFD:
+            case OP_LFDU:
+            {
+                double value = *(double*)ea;
+                context->fpr[rD] = value;
+            
+                if (op == OP_LFDU)
+                    context->gpr[rA] = ea;
+            
+                return;
+            }
+            
+            case OP_STFS:
+            case OP_STFSU:
+            {
+                float value = static_cast<float>(context->fpr[rD]);
+                *(float*)ea = value;
+            
+                if (op == OP_STFSU)
+                    context->gpr[rA] = ea;
+            
+                return;
+            }
+            
+            case OP_STFD:
+            case OP_STFDU:
+            {
+                double value = context->fpr[rD];
+                *(double*)ea = value;
+            
+                if (op == OP_STFDU)
+                    context->gpr[rA] = ea;
+            
+                return;
+            }
+
             default:
             {
                 std::string msg = std::format("Instruction: {:08X}", instruction);
@@ -213,17 +299,11 @@ namespace Library::Debug
 
         if (!context) return FALSE;
         
-        // 非ブロッキングで push する
         uint32_t t = infoTail.load(std::memory_order_relaxed);
         uint32_t next = (t + 1) & DAR_MASK;
         uint32_t h = infoHead.load(std::memory_order_acquire);
         
-        if (next == h)
-        {
-            // バッファ満杯 -> ドロップ（安全策）。上書きしたければ darHead を進める実装に変える。
-            // 何もせずに戻す（必要なら統計カウンタを増やすくらい）
-        }
-        else
+        if(next != h)
         {
             uint32_t dar = context->dar;
 
