@@ -4,6 +4,6 @@
 
 namespace Library::Debug::Exception
 {
-    void Initialize();
+    void Initialize(); // Initialization required for each core
     void SetCallback(OSExceptionType type, OSExceptionCallbackFn function);
 }

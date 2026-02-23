@@ -80,31 +80,6 @@ namespace Library::Debug
         return vector;
     }
 
-    constexpr inline uint32_t OP_LWZ   = 32;
-    constexpr inline uint32_t OP_LWZU  = 33;
-    constexpr inline uint32_t OP_LBZ   = 34;
-    constexpr inline uint32_t OP_LBZU  = 35;
-    constexpr inline uint32_t OP_STW   = 36;
-    constexpr inline uint32_t OP_STWU  = 37;
-    constexpr inline uint32_t OP_STB   = 38;
-    constexpr inline uint32_t OP_STBU  = 39;
-    constexpr inline uint32_t OP_LHZ   = 40;
-    constexpr inline uint32_t OP_LHZU  = 41;
-    constexpr inline uint32_t OP_LHA   = 42;
-    constexpr inline uint32_t OP_LHAU  = 43;
-    constexpr inline uint32_t OP_STH   = 44;
-    constexpr inline uint32_t OP_STHU  = 45;
-    constexpr inline uint32_t OP_LMW   = 46;
-    constexpr inline uint32_t OP_STMW  = 47;
-    constexpr inline uint32_t OP_LFS   = 48;
-    constexpr inline uint32_t OP_LFSU  = 49;
-    constexpr inline uint32_t OP_LFD   = 50;
-    constexpr inline uint32_t OP_LFDU  = 51;
-    constexpr inline uint32_t OP_STFS  = 52;
-    constexpr inline uint32_t OP_STFSU = 53;
-    constexpr inline uint32_t OP_STFD  = 54;
-    constexpr inline uint32_t OP_STFDU = 55;
-
     OSSwitchThreadCallbackFn OSSwitchThreadCallbackDefault = reinterpret_cast<OSSwitchThreadCallbackFn>(0x0103C4B4);
 
     void BreakpointManager::Initialize()
@@ -145,13 +120,8 @@ namespace Library::Debug
 
     BOOL BreakpointManager::DSIHandler(OSContext* context)
     {
-        if ((context->dsisr & (MATCH_DABR_BIT)) == 0)
-        {
-            OSFatal("DSI");
-            return FALSE;
-        }
-
         if (!context) return FALSE;
+        if ((context->dsisr & (MATCH_DABR_BIT)) == 0) return FALSE;
         
         uint32_t dar = context->dar;
 
@@ -159,7 +129,7 @@ namespace Library::Debug
         uint32_t begin = dBreakpointAddress.load();
         uint32_t end = begin + size;
         
-        if((begin <= dar || dar < end))
+        if((begin <= dar && dar < end))
         {
             DataBreakInfo info =
             {
@@ -219,28 +189,18 @@ namespace Library::Debug
         uint32_t i = iabr.load();
         uint32_t addr = reinterpret_cast<uint32_t>(thread);
 
-        uint32_t* dPrev = dMap.find(addr);
-        if(!dPrev)
+        uint32_t dPrev = 0;
+        if(!dMap.try_get(addr, dPrev) || dPrev != d)
         {
             SetDABR(d);
             dMap.insert(addr, d);
         }
-        else if(*dPrev != d)
-        {
-            SetDABR(d);
-            *dPrev = d;
-        }
 
-        uint32_t* iPrev = iMap.find(addr);
-        if(!iPrev)
+        uint32_t iPrev = 0;
+        if(!iMap.try_get(addr, iPrev) || iPrev != i)
         {
             SetIABR(i);
             iMap.insert(addr, i);
-        }
-        else if(*iPrev != i)
-        {
-            SetIABR(i);
-            *iPrev = i;
         }
     }
 }

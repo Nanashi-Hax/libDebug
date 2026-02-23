@@ -1,14 +1,13 @@
-#include "coreinit/exception.h"
-#include <string>
+#include <atomic>
 #include <coreinit/kernel.h>
 #include <coreinit/debug.h>
+#include <coreinit/thread.h>
+#include <coreinit/exception.h>
+#include <coreinit/core.h>
 
 namespace Library::Debug::Exception
 {
-    static uint8_t sStack[0x1000];
-    OSContext sContext;
-
-    namespace Callback
+    struct Callback
     {
         OSExceptionCallbackFn systemReset;
         OSExceptionCallbackFn machineCheck;
@@ -25,9 +24,9 @@ namespace Library::Debug::Exception
         OSExceptionCallbackFn breakpoint;
         OSExceptionCallbackFn systemInterrupt;
         OSExceptionCallbackFn ici;
-    }
+    };
 
-    namespace ChainInfo
+    struct ChainInfo
     {
         OSExceptionChainInfo systemReset;
         OSExceptionChainInfo machineCheck;
@@ -44,27 +43,37 @@ namespace Library::Debug::Exception
         OSExceptionChainInfo breakpoint;
         OSExceptionChainInfo systemInterrupt;
         OSExceptionChainInfo ici;
-    }
+    };
 
-    OSExceptionCallbackFn GetCallback(OSExceptionType type)
+    static constexpr const uint32_t STACK_SIZE = 0x1000;
+    alignas(16) static uint8_t sStack[3][STACK_SIZE];
+    static OSContext sContext[3];
+    static OSThread sThread[3];
+    static Callback sCallback[3];
+    static ChainInfo sChain[3];
+    // 明示的に初期化しておく（静的領域でもゼロ初期化されるが明示的な方が確実で読みやすい）
+    static std::atomic<bool> sInHandler[3] = { false, false, false };
+
+    OSExceptionCallbackFn GetCallback(OSExceptionType type, uint32_t core)
     {
+        Callback& c = sCallback[core];
         switch (type)
         {
-            case OS_EXCEPTION_TYPE_SYSTEM_RESET: return Callback::systemReset;
-            case OS_EXCEPTION_TYPE_MACHINE_CHECK: return Callback::machineCheck;
-            case OS_EXCEPTION_TYPE_DSI: return Callback::dsi;
-            case OS_EXCEPTION_TYPE_ISI: return Callback::isi;
-            case OS_EXCEPTION_TYPE_EXTERNAL_INTERRUPT: return Callback::externalInterrupt;
-            case OS_EXCEPTION_TYPE_ALIGNMENT: return Callback::alignment;
-            case OS_EXCEPTION_TYPE_PROGRAM: return Callback::program;
-            case OS_EXCEPTION_TYPE_FLOATING_POINT: return Callback::floatingPoint;
-            case OS_EXCEPTION_TYPE_DECREMENTER: return Callback::decrementer;
-            case OS_EXCEPTION_TYPE_SYSTEM_CALL: return Callback::systemCall;
-            case OS_EXCEPTION_TYPE_TRACE: return Callback::trace;
-            case OS_EXCEPTION_TYPE_PERFORMANCE_MONITOR: return Callback::performanceMonitor;
-            case OS_EXCEPTION_TYPE_BREAKPOINT: return Callback::breakpoint;
-            case OS_EXCEPTION_TYPE_SYSTEM_INTERRUPT: return Callback::systemInterrupt;
-            case OS_EXCEPTION_TYPE_ICI: return Callback::ici;
+            case OS_EXCEPTION_TYPE_SYSTEM_RESET: return c.systemReset;
+            case OS_EXCEPTION_TYPE_MACHINE_CHECK: return c.machineCheck;
+            case OS_EXCEPTION_TYPE_DSI: return c.dsi;
+            case OS_EXCEPTION_TYPE_ISI: return c.isi;
+            case OS_EXCEPTION_TYPE_EXTERNAL_INTERRUPT: return c.externalInterrupt;
+            case OS_EXCEPTION_TYPE_ALIGNMENT: return c.alignment;
+            case OS_EXCEPTION_TYPE_PROGRAM: return c.program;
+            case OS_EXCEPTION_TYPE_FLOATING_POINT: return c.floatingPoint;
+            case OS_EXCEPTION_TYPE_DECREMENTER: return c.decrementer;
+            case OS_EXCEPTION_TYPE_SYSTEM_CALL: return c.systemCall;
+            case OS_EXCEPTION_TYPE_TRACE: return c.trace;
+            case OS_EXCEPTION_TYPE_PERFORMANCE_MONITOR: return c.performanceMonitor;
+            case OS_EXCEPTION_TYPE_BREAKPOINT: return c.breakpoint;
+            case OS_EXCEPTION_TYPE_SYSTEM_INTERRUPT: return c.systemInterrupt;
+            case OS_EXCEPTION_TYPE_ICI: return c.ici;
             default: return nullptr;
         }
     }
@@ -92,133 +101,200 @@ namespace Library::Debug::Exception
         }
     }
 
-    OSExceptionChainInfo * GetChainInfo(OSExceptionType type)
+    OSExceptionChainInfo * GetChainInfo(OSExceptionType type, uint32_t core)
     {
+        ChainInfo& c = sChain[core];
         switch (type)
         {
-            case OS_EXCEPTION_TYPE_SYSTEM_RESET: return &ChainInfo::systemReset;
-            case OS_EXCEPTION_TYPE_MACHINE_CHECK: return &ChainInfo::machineCheck;
-            case OS_EXCEPTION_TYPE_DSI: return &ChainInfo::dsi;
-            case OS_EXCEPTION_TYPE_ISI: return &ChainInfo::isi;
-            case OS_EXCEPTION_TYPE_EXTERNAL_INTERRUPT: return &ChainInfo::externalInterrupt;
-            case OS_EXCEPTION_TYPE_ALIGNMENT: return &ChainInfo::alignment;
-            case OS_EXCEPTION_TYPE_PROGRAM: return &ChainInfo::program;
-            case OS_EXCEPTION_TYPE_FLOATING_POINT: return &ChainInfo::floatingPoint;
-            case OS_EXCEPTION_TYPE_DECREMENTER: return &ChainInfo::decrementer;
-            case OS_EXCEPTION_TYPE_SYSTEM_CALL: return &ChainInfo::systemCall;
-            case OS_EXCEPTION_TYPE_TRACE: return &ChainInfo::trace;
-            case OS_EXCEPTION_TYPE_PERFORMANCE_MONITOR: return &ChainInfo::performanceMonitor;
-            case OS_EXCEPTION_TYPE_BREAKPOINT: return &ChainInfo::breakpoint;
-            case OS_EXCEPTION_TYPE_SYSTEM_INTERRUPT: return &ChainInfo::systemInterrupt;
-            case OS_EXCEPTION_TYPE_ICI: return &ChainInfo::ici;
+            case OS_EXCEPTION_TYPE_SYSTEM_RESET: return &c.systemReset;
+            case OS_EXCEPTION_TYPE_MACHINE_CHECK: return &c.machineCheck;
+            case OS_EXCEPTION_TYPE_DSI: return &c.dsi;
+            case OS_EXCEPTION_TYPE_ISI: return &c.isi;
+            case OS_EXCEPTION_TYPE_EXTERNAL_INTERRUPT: return &c.externalInterrupt;
+            case OS_EXCEPTION_TYPE_ALIGNMENT: return &c.alignment;
+            case OS_EXCEPTION_TYPE_PROGRAM: return &c.program;
+            case OS_EXCEPTION_TYPE_FLOATING_POINT: return &c.floatingPoint;
+            case OS_EXCEPTION_TYPE_DECREMENTER: return &c.decrementer;
+            case OS_EXCEPTION_TYPE_SYSTEM_CALL: return &c.systemCall;
+            case OS_EXCEPTION_TYPE_TRACE: return &c.trace;
+            case OS_EXCEPTION_TYPE_PERFORMANCE_MONITOR: return &c.performanceMonitor;
+            case OS_EXCEPTION_TYPE_BREAKPOINT: return &c.breakpoint;
+            case OS_EXCEPTION_TYPE_SYSTEM_INTERRUPT: return &c.systemInterrupt;
+            case OS_EXCEPTION_TYPE_ICI: return &c.ici;
             default: return nullptr;
         }
     }
 
     void Handler(OSExceptionType type, OSContext * interruptedContext, OSContext * callbackContext)
     {
-        __OSSetCurrentUserContext(callbackContext);
-        auto callback = GetCallback(type);
-        if(callback)
+        // 1) core をまず安全に決める（interruptedContext->upir が信頼できる前提だが範囲チェック）
+        uint32_t core = interruptedContext ? interruptedContext->upir : OSGetCoreId();
+        if (core >= 3) core = OSGetCoreId(); // フォールバック（安全策）
+
+        std::atomic<bool>& in = sInHandler[core];
+
+        // 2) 再入検出：取れなければ即抜け（**スピン禁止**）
+        bool expected = false;
+        if (!in.compare_exchange_strong(expected, true,
+                                         std::memory_order_acquire,
+                                         std::memory_order_relaxed))
         {
-            if(callback(interruptedContext) == TRUE)
-            {
-                __OSSetAndLoadContext(interruptedContext);
-                return;
-            }
+            // 既に同コアで処理中 → 例外ハンドラ内でスピンは危険なので即戻る
+            // ここでは何もしないで戻る。必要なら統計/ログフラグだけ立てる（ただしログも慎重に）
+            return;
         }
+
+        // 3) 実処理：可能な限り最小に。フラグはコンテキスト切替より前にクリアする必要がある。
+        __OSSetCurrentUserContext(callbackContext);
+
+        auto callback = GetCallback(type, core);
+        if (callback)
+        {
+            if (callback(interruptedContext) == TRUE)
+            {
+                // 成功時：フラグをクリアして元のコンテキストへ戻す
+                in.store(false, std::memory_order_release);
+                __OSSetAndLoadContext(interruptedContext); // たぶん戻らない
+                return; // 防御的に書く（たいていここには戻らない）
+            }
+            // callback が FALSE を返した場合は下で致命処理へ（フラグはクリアしておく）
+        }
+
+        // 失敗/未ハンドル時：フラグをクリアして致命
+        in.store(false, std::memory_order_release);
         OSFatal(GetString(type));
     }
 
-    void Initialize()
+    void SetExceptionHandler()
     {
+        uint32_t core = OSGetCoreId();
+
         OSExceptionChainInfo cur;
         cur.callback = Handler;
-        cur.stack = sStack + sizeof(sStack);
-        cur.context = &sContext;
+        cur.stack = sStack[core] + STACK_SIZE;
+        cur.context = &sContext[core];
     
         OSExceptionType type;
         OSExceptionChainInfo* prev;
     
         type = OS_EXCEPTION_TYPE_SYSTEM_RESET;
-        prev = GetChainInfo(type);
+        prev = GetChainInfo(type, core);
         __KernelSetUserModeExHandler(type, &cur, prev);
     
         type = OS_EXCEPTION_TYPE_MACHINE_CHECK;
-        prev = GetChainInfo(type);
+        prev = GetChainInfo(type, core);
         __KernelSetUserModeExHandler(type, &cur, prev);
     
         type = OS_EXCEPTION_TYPE_DSI;
-        prev = GetChainInfo(type);
+        prev = GetChainInfo(type, core);
         __KernelSetUserModeExHandler(type, &cur, prev);
     
         type = OS_EXCEPTION_TYPE_ISI;
-        prev = GetChainInfo(type);
+        prev = GetChainInfo(type, core);
         __KernelSetUserModeExHandler(type, &cur, prev);
     
         type = OS_EXCEPTION_TYPE_EXTERNAL_INTERRUPT;
-        prev = GetChainInfo(type);
+        prev = GetChainInfo(type, core);
         __KernelSetUserModeExHandler(type, &cur, prev);
     
         type = OS_EXCEPTION_TYPE_ALIGNMENT;
-        prev = GetChainInfo(type);
+        prev = GetChainInfo(type, core);
         __KernelSetUserModeExHandler(type, &cur, prev);
     
         type = OS_EXCEPTION_TYPE_PROGRAM;
-        prev = GetChainInfo(type);
+        prev = GetChainInfo(type, core);
         __KernelSetUserModeExHandler(type, &cur, prev);
     
         type = OS_EXCEPTION_TYPE_FLOATING_POINT;
-        prev = GetChainInfo(type);
+        prev = GetChainInfo(type, core);
         __KernelSetUserModeExHandler(type, &cur, prev);
     
         type = OS_EXCEPTION_TYPE_DECREMENTER;
-        prev = GetChainInfo(type);
+        prev = GetChainInfo(type, core);
         __KernelSetUserModeExHandler(type, &cur, prev);
     
         type = OS_EXCEPTION_TYPE_SYSTEM_CALL;
-        prev = GetChainInfo(type);
+        prev = GetChainInfo(type, core);
         __KernelSetUserModeExHandler(type, &cur, prev);
     
         type = OS_EXCEPTION_TYPE_TRACE;
-        prev = GetChainInfo(type);
+        prev = GetChainInfo(type, core);
         __KernelSetUserModeExHandler(type, &cur, prev);
     
         type = OS_EXCEPTION_TYPE_PERFORMANCE_MONITOR;
-        prev = GetChainInfo(type);
+        prev = GetChainInfo(type, core);
         __KernelSetUserModeExHandler(type, &cur, prev);
     
         type = OS_EXCEPTION_TYPE_BREAKPOINT;
-        prev = GetChainInfo(type);
+        prev = GetChainInfo(type, core);
         __KernelSetUserModeExHandler(type, &cur, prev);
     
         type = OS_EXCEPTION_TYPE_SYSTEM_INTERRUPT;
-        prev = GetChainInfo(type);
+        prev = GetChainInfo(type, core);
         __KernelSetUserModeExHandler(type, &cur, prev);
     
         // ICI is not set
     }
 
+    int Initializer(int argc, const char **argv)
+    {
+        Exception::SetExceptionHandler();
+        return 0;
+    }
+
+    void Initialize()
+    {
+        for(uint32_t i = 0; i < 3; i++)
+        {
+            OSThreadAttributes attribute;
+            switch(i)
+            {
+                case 0: attribute = OS_THREAD_ATTRIB_AFFINITY_CPU0; break;
+                case 1: attribute = OS_THREAD_ATTRIB_AFFINITY_CPU1; break;
+                case 2: attribute = OS_THREAD_ATTRIB_AFFINITY_CPU2; break;
+                default: return;
+            }
+
+            OSCreateThread
+            (
+                &sThread[i],
+                Initializer,
+                0,
+                nullptr,
+                sStack[i] + STACK_SIZE,
+                STACK_SIZE,
+                16,
+                attribute
+            );
+        
+            OSResumeThread(&sThread[i]);
+        }
+    }
+
     void SetCallback(OSExceptionType type, OSExceptionCallbackFn function)
     {
-        switch (type)
+        for(uint32_t i = 0; i < 3; i++)
         {
-            case OS_EXCEPTION_TYPE_SYSTEM_RESET: Callback::systemReset = function; break;
-            case OS_EXCEPTION_TYPE_MACHINE_CHECK: Callback::machineCheck = function; break;
-            case OS_EXCEPTION_TYPE_DSI: Callback::dsi = function; break;
-            case OS_EXCEPTION_TYPE_ISI: Callback::isi = function; break;
-            case OS_EXCEPTION_TYPE_EXTERNAL_INTERRUPT: Callback::externalInterrupt = function; break;
-            case OS_EXCEPTION_TYPE_ALIGNMENT: Callback::alignment = function; break;
-            case OS_EXCEPTION_TYPE_PROGRAM: Callback::program = function; break;
-            case OS_EXCEPTION_TYPE_FLOATING_POINT: Callback::floatingPoint = function; break;
-            case OS_EXCEPTION_TYPE_DECREMENTER: Callback::decrementer = function; break;
-            case OS_EXCEPTION_TYPE_SYSTEM_CALL: Callback::systemCall = function; break;
-            case OS_EXCEPTION_TYPE_TRACE: Callback::trace = function; break;
-            case OS_EXCEPTION_TYPE_PERFORMANCE_MONITOR: Callback::performanceMonitor = function; break;
-            case OS_EXCEPTION_TYPE_BREAKPOINT: Callback::breakpoint = function; break;
-            case OS_EXCEPTION_TYPE_SYSTEM_INTERRUPT: Callback::systemInterrupt = function; break;
-            case OS_EXCEPTION_TYPE_ICI: Callback::ici = function; break;
-            default: break;
+            Callback& c = sCallback[i];
+            switch (type)
+            {
+                case OS_EXCEPTION_TYPE_SYSTEM_RESET: c.systemReset = function; break;
+                case OS_EXCEPTION_TYPE_MACHINE_CHECK: c.machineCheck = function; break;
+                case OS_EXCEPTION_TYPE_DSI: c.dsi = function; break;
+                case OS_EXCEPTION_TYPE_ISI: c.isi = function; break;
+                case OS_EXCEPTION_TYPE_EXTERNAL_INTERRUPT: c.externalInterrupt = function; break;
+                case OS_EXCEPTION_TYPE_ALIGNMENT: c.alignment = function; break;
+                case OS_EXCEPTION_TYPE_PROGRAM: c.program = function; break;
+                case OS_EXCEPTION_TYPE_FLOATING_POINT: c.floatingPoint = function; break;
+                case OS_EXCEPTION_TYPE_DECREMENTER: c.decrementer = function; break;
+                case OS_EXCEPTION_TYPE_SYSTEM_CALL: c.systemCall = function; break;
+                case OS_EXCEPTION_TYPE_TRACE: c.trace = function; break;
+                case OS_EXCEPTION_TYPE_PERFORMANCE_MONITOR: c.performanceMonitor = function; break;
+                case OS_EXCEPTION_TYPE_BREAKPOINT: c.breakpoint = function; break;
+                case OS_EXCEPTION_TYPE_SYSTEM_INTERRUPT: c.systemInterrupt = function; break;
+                case OS_EXCEPTION_TYPE_ICI: c.ici = function; break;
+                default: break;
+            }
         }
     }
 }
