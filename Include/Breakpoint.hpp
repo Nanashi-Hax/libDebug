@@ -32,8 +32,8 @@ namespace Library::Debug
         static void SetInstructionBreakpoint(uint32_t address);
         static void UnsetInstructionBreakpoint();
 
-        static std::vector<DataBreakInfo> ConsumeDataBreakInfo();
-        static std::vector<InstructionBreakInfo> ConsumeInstructionBreakInfo();
+        static std::vector<RegisterInfo> ConsumeDataBreakInfo();
+        static std::vector<RegisterInfo> ConsumeInstructionBreakInfo();
 
     private:
         static void SetIABR(uint32_t value);
@@ -50,12 +50,12 @@ namespace Library::Debug
         static inline std::atomic<uint32_t> dabr{0};
         static inline std::atomic<uint32_t> dBreakpointAddress{0};
         static inline std::atomic<uint32_t> dBreakpointSize{0};
-        static inline RingBuffer<DataBreakInfo, 256> dInfoBuffer{};
+        static inline RingBuffer<RegisterInfo, 256> dInfoBuffer{};
 
     private:
         static inline std::atomic<uint32_t> iabr{0};
         static inline std::atomic<uint32_t> iBreakpointAddress{0};
-        static inline RingBuffer<InstructionBreakInfo, 256> iInfoBuffer{};
+        static inline RingBuffer<RegisterInfo, 256> iInfoBuffer{};
 
     private:
         static inline Map<uint32_t, uint32_t, 256> dMap{};

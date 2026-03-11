@@ -15,9 +15,9 @@ namespace Library::Debug
     
     void SetDataBreakpoint(uint32_t address, bool read, bool write, BreakpointSize size);
     void UnsetDataBreakpoint();
-    std::vector<DataBreakInfo> ConsumeDataBreakInfo();
+    std::vector<RegisterInfo> ConsumeDataBreakInfo();
 
     void SetInstructionBreakpoint(uint32_t address);
     void UnsetInstructionBreakpoint();
-    std::vector<InstructionBreakInfo> ConsumeInstructionBreakInfo();
+    std::vector<RegisterInfo> ConsumeInstructionBreakInfo();
 }

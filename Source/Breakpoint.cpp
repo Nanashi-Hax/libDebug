@@ -52,13 +52,13 @@ namespace Library::Debug
         iInfoBuffer.clear();
     }
 
-    std::vector<DataBreakInfo> BreakpointManager::ConsumeDataBreakInfo()
+    std::vector<RegisterInfo> BreakpointManager::ConsumeDataBreakInfo()
     {
-        std::vector<DataBreakInfo> vector;
+        std::vector<RegisterInfo> vector;
 
         while (true)
         {
-            DataBreakInfo info;
+            RegisterInfo info;
             if(!dInfoBuffer.pop(info)) break;
             vector.push_back(info);
         }
@@ -66,13 +66,13 @@ namespace Library::Debug
         return vector;
     }
 
-    std::vector<InstructionBreakInfo> BreakpointManager::ConsumeInstructionBreakInfo()
+    std::vector<RegisterInfo> BreakpointManager::ConsumeInstructionBreakInfo()
     {
-        std::vector<InstructionBreakInfo> vector;
+        std::vector<RegisterInfo> vector;
 
         while (true)
         {
-            InstructionBreakInfo info;
+            RegisterInfo info;
             if(!iInfoBuffer.pop(info)) break;
             vector.push_back(info);
         }
@@ -131,11 +131,7 @@ namespace Library::Debug
         
         if((begin <= dar && dar < end))
         {
-            DataBreakInfo info =
-            {
-                context->dar,
-                context->srr0
-            };
+            auto info = RegisterInfo::fromContext(context);
             dInfoBuffer.push(info);
         }
     
@@ -154,10 +150,7 @@ namespace Library::Debug
         
         if(address == pc)
         {
-            InstructionBreakInfo info =
-            {
-                context->srr0
-            };
+            auto info = RegisterInfo::fromContext(context);
             iInfoBuffer.push(info);
         }
     

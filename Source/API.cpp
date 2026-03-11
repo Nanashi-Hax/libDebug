@@ -35,7 +35,7 @@ namespace Library::Debug
         BreakpointManager::UnsetDataBreakpoint();
     }
 
-    std::vector<DataBreakInfo> ConsumeDataBreakInfo()
+    std::vector<RegisterInfo> ConsumeDataBreakInfo()
     {
         return BreakpointManager::ConsumeDataBreakInfo();
     }
@@ -52,7 +52,7 @@ namespace Library::Debug
         BreakpointManager::UnsetInstructionBreakpoint();
     }
 
-    std::vector<InstructionBreakInfo> ConsumeInstructionBreakInfo()
+    std::vector<RegisterInfo> ConsumeInstructionBreakInfo()
     {
         return BreakpointManager::ConsumeInstructionBreakInfo();
     }
